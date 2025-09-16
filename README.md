@@ -60,7 +60,7 @@ powershell.exe -ExecutionPolicy Bypass -File "getFolderContents.ps1" -FolderPath
 **Output:** Discord message with a text file attachment containing file/folder names, sizes, creation/modification dates, and types in a table format.
 
 ### 4. getWebHistory.ps1
-**Purpose:** Extracts Microsoft Edge browsing history for a specified user and sends to Discord. Useful for investigations.
+**Purpose:** Extracts Microsoft Edge browsing history for all profiles of a specified user and sends to Discord. Useful for investigations.
 
 **Parameters:**
 - `-GetUser` (string, default: current user): Username (e.g., "user").
@@ -73,7 +73,7 @@ powershell.exe -ExecutionPolicy Bypass -File "getWebHistory.ps1" -GetUser "user"
 
 **Requirements:** The script automatically downloads `sqlite3.exe` if not present to read the Edge history database.
 
-**Output:** Discord message with a text file attachment containing URLs, titles, and visit times from the last N days.
+**Output:** Separate CSV files for each Edge profile (e.g., Default, Profile 1), named `COMPUTERNAME-user-PROFILENAME.csv`, attached to Discord messages. Each CSV contains URLs, titles, and formatted visit times from the last N days.
 
 ## Security and Best Practices
 
