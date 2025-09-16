@@ -49,7 +49,6 @@ obj/
 *.ps1xml
 *.psd1
 *.psm1
-*.ps1
 # Uncomment if you want to ignore all .ps1 files, but probably not
 # *.ps1
 
