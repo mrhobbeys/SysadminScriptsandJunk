@@ -83,6 +83,18 @@ powershell.exe -ExecutionPolicy Bypass -File "getWebHistory.ps1" -GetUser "user"
 
 **Output:** Separate CSV files for each Edge profile (e.g., Default, Profile 1), named `COMPUTERNAME-user-PROFILENAME.csv`, attached to Discord messages. Each CSV contains URLs, titles, and formatted visit times from the last N days.
 
+### 5. makeBlockList.ps1
+**Purpose:** Interactively collects websites to block, adds them to the Windows hosts file, and reports the blocks to Discord.
+
+**Usage:**
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File "makeBlockList.ps1"
+```
+
+**Process:** Prompts for websites one by one; enter a blank line to finish. Blocks each site by adding `127.0.0.1 site` to `C:\Windows\System32\drivers\etc\hosts` if not already present.
+
+**Output:** Discord message in a codeblock listing up to 10 blocked sites as "site = blocked on MACHINENAME".
+
 ## Security and Best Practices
 
 - **Webhook Security:** Keep your Discord webhook URL private. Rotate it if compromised.
