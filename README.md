@@ -10,7 +10,12 @@ This repository contains PowerShell scripts designed for system administrators t
    cd SysadminScriptsandJunk
    ```
 
-2. **Create a `.env` file** in the repository root with your Discord webhook URL:
+   **Quick Setup (One-liner):** Alternatively, use this PowerShell one-liner to clone the repo and set up the webhook:
+   ```powershell
+   powershell -Command "git clone https://github.com/mrhobbeys/SysadminScriptsandJunk.git; cd SysadminScriptsandJunk; $webhook = Read-Host 'Enter Discord Webhook URL'; 'WEBHOOK_URL=' + $webhook | Out-File .env"
+   ```
+
+2. **Create a `.env` file** in the repository root with your Discord webhook URL (if not using the one-liner):
    ```
    WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN
    ```
