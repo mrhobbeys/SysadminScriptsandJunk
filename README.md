@@ -1,4 +1,7 @@
-# SysAdmin PowerShell Scripts
+# SysAdmin P   **Quick Setup (One-liner):** Alternatively, use this PowerShell one-liner to download the repo as a ZIP (no git required) and set up the webhook. Run in an elevated PowerShell (as Administrator) for full access to system paths. The repo will be extracted to the current directory where you run the command:
+   ```powershell
+   powershell -Command "$url = 'https://github.com/mrhobbeys/SysadminScriptsandJunk/archive/refs/heads/main.zip'; $zip = 'repo.zip'; Invoke-WebRequest -Uri $url -OutFile $zip; Expand-Archive -Path $zip -DestinationPath '.' -Force; $dir = Get-ChildItem '.' | Where-Object { $_.Name -like 'SysadminScriptsandJunk-*' } | Select-Object -First 1; cd $dir.FullName; Write-Host \"Repo extracted to: $dir.FullName\"; $webhook = Read-Host 'Enter Discord Webhook URL'; 'WEBHOOK_URL=' + $webhook | Out-File .env"
+   ```Shell Scripts
 
 This repository contains PowerShell scripts designed for system administrators to automate tasks like monitoring user directories, folder contents, and browser history. All scripts send results to a Discord webhook for easy notification and logging.
 
