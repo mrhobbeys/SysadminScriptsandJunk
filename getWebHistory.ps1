@@ -67,7 +67,7 @@ foreach ($profile in $profiles) {
 
     # Query the SQLite DB for URLs
     try {
-        $query = "SELECT url, title, last_visit_time FROM urls WHERE last_visit_time >= $minVisitTime ORDER BY last_visit_time DESC LIMIT 50;"
+        $query = "SELECT url, title, last_visit_time FROM urls WHERE last_visit_time >= $minVisitTime ORDER BY last_visit_time DESC;"
         $history = & $sqliteExe $tempHistory "$query"
     } catch {
         Write-Error "Error querying Edge history for profile '$profileName': $_"
