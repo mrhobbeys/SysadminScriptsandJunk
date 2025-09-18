@@ -68,7 +68,7 @@ powershell.exe -ExecutionPolicy Bypass -File "getFolderContents.ps1" -FolderPath
 **Output:** Discord message with a text file attachment containing file/folder names, sizes, creation/modification dates, and types in a table format.
 
 ### 4. getWebHistory.ps1
-**Purpose:** Extracts Microsoft Edge browsing history for all profiles of a specified user and sends to Discord. Useful for investigations.
+**Purpose:** Extracts Microsoft Edge browsing history for all profiles of a specified user and sends to Discord. Useful for investigations. System admins can run this script as Administrator on any machine to retrieve browsing history for any user by specifying the -GetUser parameter.
 
 **Parameters:**
 - `-GetUser` (string, default: current user): Username (e.g., "user").
