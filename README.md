@@ -98,6 +98,7 @@ powershell.exe -ExecutionPolicy Bypass -File "makeBlockList.ps1"
 ## Security and Best Practices
 
 - **Webhook Security:** Keep your Discord webhook URL private. Rotate it if compromised.
+- **Discord Webhook Usage Disclaimer:** These scripts send data to Discord webhooks, which may involve transmitting sensitive information. Ensure compliance with your organization's data handling policies, privacy regulations (e.g., GDPR, HIPAA), and local laws. Use at your own risk and consult legal or IT security experts regarding regulatory requirements and associated risks.
 - **Execution Policy:** Use `Bypass` only for trusted scripts. Reset to `RemoteSigned` after use.
 - **Permissions:** Run scripts with appropriate privileges (e.g., Administrator for system folders).
 - **Data Handling:** These scripts access sensitive data (e.g., browsing history). Use ethically and legally.
