@@ -21,11 +21,18 @@ if (-not $webhookUrl) {
 # Collect websites to block
 $sites = @()
 while ($true) {
-    $site = Read-Host "Enter website to block (or press Enter to finish)"
-    if ([string]::IsNullOrWhiteSpace($site)) {
+    $inputSite = Read-Host "Enter website to block (or press Enter to finish)"
+    if ([string]::IsNullOrWhiteSpace($inputSite)) {
         break
     }
-    $sites += $site.Trim()
+    # Process the input to extract domain/subdomain
+    try {
+        $uri = [System.Uri]$inputSite
+        $site = $uri.Host
+    } catch {
+        $site = $inputSite.Trim()
+    }
+    $sites += $site
 }
 
 if ($sites.Count -eq 0) {

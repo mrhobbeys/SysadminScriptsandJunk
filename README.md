@@ -91,7 +91,7 @@ powershell.exe -ExecutionPolicy Bypass -File "getWebHistory.ps1" -GetUser "user"
 powershell.exe -ExecutionPolicy Bypass -File "makeBlockList.ps1"
 ```
 
-**Process:** Prompts for websites one by one; enter a blank line to finish. Blocks each site by adding `127.0.0.1 site` to `C:\Windows\System32\drivers\etc\hosts` if not already present.
+**Process:** Prompts for websites one by one; enter a blank line to finish. The script intelligently parses inputs: full URLs are stripped to their domain/subdomain (e.g., "https://sub.example.com/path" blocks "sub.example.com"), while plain domains/subdomains are used as entered. Blocks each site by adding `127.0.0.1 site` to `C:\Windows\System32\drivers\etc\hosts` if not already present.
 
 **Output:** Discord message in a codeblock listing up to 10 blocked sites as "site = blocked on MACHINENAME".
 
